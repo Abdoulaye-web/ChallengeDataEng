@@ -1,0 +1,198 @@
+x-common: 
+  &common
+  build:
+    context: .  # Contexte de construction Docker
+    dockerfile: Dockerfile
+  user: "${AIRFLOW_UID}:0"
+  env_file:
+    - .env
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./requirements.txt:/requirements.txt
+    - ./data:/opt/airflow/data  # Montre le dossier 'data'
+
+x-depends-on:
+  &depends-on
+  depends_on:
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+  mongodb:
+    build:
+      context: .  # Assurez-vous que le Dockerfile est dans le même répertoire que le fichier docker-compose.yml
+      dockerfile: Dockerfile
+    container_name: mongodb
+    ports:
+      - "27018:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin@  # Remplacez par votre propre mot de passe
+      - MONGO_INITDB_DATABASE=airflow
+    command: ["mongod", "--bind_ip_all"]  # Autorise les connexions externes
+    volumes:
+      - mongodb_data:/data/db
+    restart: always
+    networks:
+      - default
+
+  scheduler:
+    <<: [*common, *depends-on]
+    container_name: airflow-scheduler
+    command: scheduler
+    restart: on-failure
+    ports:
+      - "8793:8793"
+    environment:
+      - AIRFLOW__WEBSERVER__SECRET_KEY=MaMFJzmXW275IWR3O2yxwLLRbA_IWsH4qEz7RItYgFk  # Ajout de la clé secrète ici
+    networks:
+      - default
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./requirements.txt:/requirements.txt
+      - ./data:/opt/airflow/data
+
+  airflow-webserver:
+    <<: [*common, *depends-on]
+    container_name: airflow-webserver
+    restart: always
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    environment:
+      - AIRFLOW__WEBSERVER__SECRET_KEY=MaMFJzmXW275IWR3O2yxwLLRbA_IWsH4qEz7RItYgFk  # Ajout de la clé secrète ici
+    networks:
+      - default
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./requirements.txt:/requirements.txt
+      - ./data:/opt/airflow/data
+
+  airflow-init:
+    <<: *common
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        pip install --no-cache-dir -r /requirements.txt
+        mkdir -p /sources/logs /sources/dags /sources/plugins
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        exec /entrypoint airflow version
+    environment:
+      - AIRFLOW__WEBSERVER__SECRET_KEY=MaMFJzmXW275IWR3O2yxwLLRbA_IWsH4qEz7RItYgFk  # Ajout de la clé secrète ici
+    networks:
+      - default
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./requirements.txt:/requirements.txt
+      - ./data:/opt/airflow/data
+
+  superset:
+    image: apache/superset:latest
+    container_name: superset
+    environment:
+      - SUPERSET_SECRET_KEY=mysecretkey  # Assurez-vous de définir une clé secrète sécurisée
+      - POSTGRES_DB=superset
+      - POSTGRES_USER=superset
+      - POSTGRES_PASSWORD=superset
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ENABLE_PUBLIC_UPLOADS=true
+      - FEATURE_FLAGS={"ALLOW_FILE_UPLOAD":true,"UPLOAD_AS_DB_TABLE":true}
+    ports:
+      - "8088:8088"
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - superset_home:/app/superset_home
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        superset db upgrade &&
+        superset init &&
+        superset run -p 8088 -h 0.0.0.0 --with-threads --reload --debug
+    networks:
+      - default
+
+  redis:
+    image: redis:6.0
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - default
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: airflow
+      MYSQL_USER: Houdini
+      MYSQL_PASSWORD: Abdoul@
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - default
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: mysql  # Nom du service MySQL dans Docker Compose
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"  # Accès à phpMyAdmin sur http://localhost:8081
+    depends_on:
+      - mysql
+    networks:
+      - default
+
+volumes:
+  postgres_data:
+  superset_home:
+  mysql_data:
+  mongodb_data:  # Volume pour MongoDB
+
+networks:
+  default:
+    driver: bridge

@@ -6,7 +6,7 @@ Mettre en place un ETL pour visualisation
 3-Stocker les resultats dans une base de donnée MongoDB
 4-Fournir un Dashboard superset pour visualiser les données 
 
-Le projet vise à construire un ETL (Extract, Transform, Load) pour l'extraction et le traitement des données relatives à la qualité de l'air provenant de l'API AirQuino. Ensuite il s'agira de la création d'un modèle de Machine Learning pour effectuer des prévisions sur les deux prochaines heures.
+###Le projet vise à construire un ETL (Extract, Transform, Load) pour l'extraction et le traitement des données relatives à la qualité de l'air provenant de l'API AirQuino. Ensuite il s'agira de la création d'un modèle de Machine Learning pour effectuer des prévisions sur les deux prochaines heures.
 
 STRUCTURE DU PROJET : 
 

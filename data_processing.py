@@ -28,24 +28,27 @@ def transformer_donnees(nom_fichier):
     # Créer un DataFrame à partir des données
     df = pd.DataFrame(donnees)
 
-    # Ne pas transformer les dates en timestamps ou autres formats. 
-    # Les dates restent sous le format d'origine (ex : "2024-11-10 21:00:00")
-    
+    # Convertir la colonne 'timestamp' en type datetime
+    df['date'] = pd.to_datetime(df['timestamp']).dt.date
+
     # Sélectionner uniquement les colonnes numériques pour le calcul de la moyenne
     colonnes_numeriques = df.select_dtypes(include='number').columns
-    df_journalier = df.groupby('timestamp')[colonnes_numeriques].mean()
+    df_journalier = df.groupby('date')[colonnes_numeriques].mean()
 
     # Ajouter des colonnes pour les moyennes CO et PM2.5
     df_journalier['CO_moyen'] = df_journalier['CO']
     df_journalier['PM2.5_moyen'] = df_journalier['PM2.5']
 
-    # Reorganiser les colonnes pour avoir 'timestamp' en premier
-    resultat_df = df_journalier[['CO_moyen', 'PM2.5_moyen']]
+    # Ajouter la colonne 'date' au DataFrame final
+    df_journalier['date'] = pd.to_datetime(df_journalier.index)
+
+    # Reorganiser les colonnes pour avoir 'date' en premier
+    resultat_df = df_journalier[['date', 'CO_moyen', 'PM2.5_moyen']]
 
     return resultat_df
 
 def charger_donnees_dans_mongo(df, nom_collection, nom_base_donnees='airflow', uri_mongo='mongodb://localhost:27017'):
-    # Connexion à MongoDB avec authentification
+    # Connexion à MongoDB
     client_mongo = MongoClient(uri_mongo, 
                                username='admin', 
                                password='admin@', 
@@ -57,8 +60,15 @@ def charger_donnees_dans_mongo(df, nom_collection, nom_base_donnees='airflow', u
     # Sélection de la collection
     collection = db[nom_collection]
 
+    # Ajouter la colonne 'date' dans les données
+    df['date'] = df.index.astype(str)
+
     # Convertir le DataFrame en un dictionnaire JSON
     donnees_json = json.loads(df.to_json(orient='records'))
 
     # Insérer les données dans la collection MongoDB
     collection.insert_many(donnees_json)
+
+
+
+ 

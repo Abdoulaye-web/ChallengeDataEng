@@ -11,11 +11,11 @@
 **docker-compose.yml**:
 Ce fichier définit les services nécessaires à l'exécution du projet dans un environnement Docker. Il contient des services pour :
 
-Postgres : Base de données pour Airflow.
-MongoDB : Base de données NoSQL utilisée pour stocker les données traitées.
-Airflow : Plusieurs services pour exécuter Apache Airflow (Scheduler, Webserver, Init).
-Superset : Pour la visualisation des données.
-Redis et MySQL : Pour d'autres services liés à Airflow et à la gestion des flux de travail.
+**Postgres** : Base de données pour Airflow.
+**MongoDB** : Base de données NoSQL utilisée pour stocker les données traitées.
+**Airflow** : Plusieurs services pour exécuter Apache Airflow (Scheduler, Webserver, Init).
+**Superset** : Pour la visualisation des données.
+**Redis et MySQL** : Pour d'autres services liés à Airflow et à la gestion des flux de travail.
 Il inclut également des volumes pour persister les données et des réseaux pour connecter les services.
 
 
@@ -29,17 +29,26 @@ Charger dans MongoDB : Les données transformées sont ensuite converties en for
 
 
 
-**ETL.py** :
-Ce script utilise les fonctions définies dans data_processing.py pour exécuter le pipeline ETL. Il traite deux stations de données en les extrayant, les transformant et en les chargeant dans MongoDB
+## La fonction main() automatise les étapes nécessaires pour :
+
+Collecter,
+Transformer,
+Stocker,
+Charger les données des stations dans une base de données MongoDB.
 
 
 **DAG Airflow (dags/)** :
-Le fichier DAG définit un flux de travail dans Apache Airflow pour exécuter les scripts ETL et de traitement des données :
 
-Tâche ETL : Exécute le script etl.py.
-Tâche de traitement des données : Exécute le script data_processing.py.
-Les deux tâches sont définies dans un DAG avec une séquence d'exécution (la tâche ETL s'exécute avant la tâche de traitement des données).
-Airflow est utilisé pour orchestrer et automatiser le processus d'extraction, de transformation, et de chargement des données.
+Tâches définies :
+1. Extraction des données :
+extract_station1 : Extrait les données de la station 283164601 et les enregistre dans station1_data.json.
+extract_station2 : Extrait les données de la station 283181971 et les enregistre dans station2_data.json.
+2. Transformation des données :
+transform_station1 : Transforme les données de station1_data.json en calculant les moyennes journalières, puis enregistre les résultats dans station1_data.json_Result.csv.
+transform_station2 : Transforme les données de station2_data.json en calculant les moyennes journalières, puis enregistre les résultats dans station2_data.json_Result.csv.
+3. Chargement des données dans MongoDB :
+load_station1 : Charge les données transformées (station1_data.json_Result.csv) dans la collection MongoDB station1.
+load_station2 : Charge les données transformées (station2_data.json_Result.csv) dans la collection MongoDB station2.
 
 **Superset Viz**: 
 L'intégration de Superset dans ce projet permet de rendre les données traitées via l'ETL accessibles et compréhensibles grâce à des visualisations dynamiques et interactives. Ces visualisations sont essentielles pour donner du sens aux données collectées, permettant aux utilisateurs de prendre des décisions éclairées basées sur les tendances observées dans les stations de mesure.

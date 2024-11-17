@@ -32,7 +32,7 @@ Charger dans MongoDB : Les données transformées sont ensuite converties en for
 ## La fonction main() automatise les étapes nécessaires pour :
 
 Collecter,
-Transformer,
+Transformer
 Stocker,
 Charger les données des stations dans une base de données MongoDB.
 
